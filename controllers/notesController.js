@@ -1,5 +1,5 @@
 const Note = require("../models/Note");
-const DeleteNote = require("../models/DeleteNote");
+const User = require("../models/User");
 const asyncHanlder = require("express-async-handler");
 
 const getAllNotes = asyncHanlder(async (req, res) => {
@@ -11,17 +11,24 @@ const getAllNotes = asyncHanlder(async (req, res) => {
 });
 
 const createNewNote = asyncHanlder(async (req, res) => {
-  const { userId, title, text, completed } = req.body;
+  const { userId, title, text } = req.body;
   //   confirm data
   if (!userId || !title || !text) {
     return res.json({ message: "All fields are required" });
   }
+
   //   find user
-  const user = await Note.findById(userId).exec();
-  console.log(user);
+  const user = await User.findById(userId).exec();
 
   if (!user) {
     return res.status(400).json({ message: "User not found" });
+  }
+
+  // check for duplicate notes for a user
+  const duplicateNote = await Note.findOne({ userId });
+
+  if (duplicateNote) {
+    return res.json({ message: "Duplicate note!" });
   }
 
   const note = await Note.create(req.body);
@@ -34,38 +41,51 @@ const createNewNote = asyncHanlder(async (req, res) => {
 });
 
 const updateUserNote = asyncHanlder(async (req, res) => {
-  const { userID, title, text, completed } = req.body;
+  const { userId, title, text, completed } = req.body;
 
-  // check for duplicate
-  const duplicate = await Note.findOne({ userID }).lean().exec();
+  if (!userId && (!title || !text || typeof completed !== "boolean")) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
 
-  if (duplicate && duplicate)
-    if (!userID || !title || !text) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+  // find note
+  const note = await Note.findOne({ userId }).lean().exec();
 
-  const note = await Note.findById(userID).exec();
+  if (!note) {
+    return res.json({ message: "Note not found" });
+  }
 
-  (note.user = userID), (note.title = title), (note.text = text);
-  note.completed = completed;
+  const updatedNote = await Note.updateOne({ userId, title, text, completed });
 
-  const updatedUserNote = await note.save();
-
-  res.json({ message: `${updatedUserNote.user} udpated` });
+  if (updatedNote) {
+    return res.json({ message: "Note updated!" });
+  }
 });
 
 const deleteUserNote = asyncHanlder(async (req, res) => {
-  const { id } = req.body;
+  const { userId, completed } = req.body;
 
-  if (!id) {
-    return res.status(400).json({ message: "Usier ID required" });
+  if (!userId) {
+    return res.status(400).json({ message: "User ID required" });
+  } else if (typeof completed !== "boolean") {
+    return res.status(400).json({ message: "Note completion required" });
+  } else if (!completed) {
+    return res
+      .status(400)
+      .json({ message: "Can't delete note. Note is note completed!" });
   }
 
-  const note = await Note.findOne({ user: id });
+  const deletedNote = await Note.deleteOne({ userId });
+
+  if (deletedNote.deletedCount) {
+    return res.json({ message: "Note deleted" });
+  } else {
+    return res.json({ message: "Note not found!" });
+  }
 });
 
 module.exports = {
   getAllNotes,
   createNewNote,
   updateUserNote,
+  deleteUserNote,
 };

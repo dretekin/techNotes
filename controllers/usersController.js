@@ -102,6 +102,7 @@ const deleteUser = asyncHanlder(async (req, res) => {
   }
 
   const note = await Note.findOne({ user: id }).lean().exec();
+  console.log(note);
   if (note) {
     return res.status(400).json({ message: "User has assigned notes" });
   }

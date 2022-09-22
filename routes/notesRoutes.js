@@ -6,7 +6,7 @@ router
   .route("/")
   .get(notesController.getAllNotes)
   .post(notesController.createNewNote)
-  .patch()
-  .delete();
+  .patch(notesController.updateUserNote)
+  .delete(notesController.deleteUserNote);
 
 module.exports = router;
